@@ -15,14 +15,30 @@ from pyspark.sql.functions import year, month, dayofmonth, hour, weekofyear, dat
 
 
 def create_spark_session():
+    '''Initiates the SparkSession.
+    Parameters:
+    None
+
+    Returns:
+    SparkSession object, configured according to the specifications in .config method
+    '''
     spark = SparkSession \
         .builder \
-        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:2.7.0") \
+        .config('spark.jars.packages", "org.apache.hadoop:hadoop-aws:2.7.0') \
         .getOrCreate()
     return spark
 
 
 def process_song_data(spark, input_data, output_data):
+    '''Reads the song data from S3, transforms it into various tables and writes those back to S3.
+    Parameters:
+    spark: the SparkSession object
+    input_data: path to S3 bucket where the song input data is stored
+    output_data: path to your private S3 bucket where the output data should be stored.
+
+    Returns:
+    None
+    '''
     # get filepath to song data file
     # using the reduced song_data input, song-data is the full input from udacity's S3
     song_data = str(input_data)+'/song_data/*/*/*/*.json'
@@ -31,7 +47,7 @@ def process_song_data(spark, input_data, output_data):
     df = spark.read.json(song_data)
 
     # extract columns to create songs table
-    songs_table = df.select(['song_id', 'title', 'artist_id', 'year', 'duration']).distinct()
+    songs_table = df.select(['song_id', 'title', 'artist_id', 'year', 'duration']).dropDuplicates()
 
     # write songs table to parquet files partitioned by year and artist
     songs_table.write.format('parquet')\
@@ -40,7 +56,7 @@ def process_song_data(spark, input_data, output_data):
         .saveAsTable('songs', mode = 'overwrite')
 
     # extract columns to create artists table
-    artists_table = df.select(['artist_id', 'artist_name', 'artist_location', 'artist_latitude', 'artist_longitude'])
+    artists_table = df.select(['artist_id', 'artist_name', 'artist_location', 'artist_latitude', 'artist_longitude']).dropDuplicates()
 
     # write artists table to parquet files
     artists_table.write.format('parquet')\
@@ -49,6 +65,15 @@ def process_song_data(spark, input_data, output_data):
 
 
 def process_log_data(spark, input_data, output_data):
+    '''Reads the log data from S3, transforms it into various tables and writes those back to S3.
+    Parameters:
+    spark: the SparkSession object
+    input_data: path to S3 bucket where the log input data is stored
+    output_data: path to your private S3 bucket where the output data should be stored.
+
+    Returns:
+    None
+    '''
     # get filepath to log data file
     # using the 'log-data' file for reduced input, log_data is the full data file on udacity's S3
     log_data = str(input_data)+'/log-data/*/*/*.json'
@@ -61,7 +86,8 @@ def process_log_data(spark, input_data, output_data):
 
     # extract columns for users table
     user_table = df.select(['userId', 'firstName', 'lastName', 'gender', 'level'])\
-        .distinct().orderBy('userId')
+        .dropDuplicates()\
+        .orderBy('userId')
 
     # write users table to parquet files
     user_table.write.format('parquet')\
@@ -81,7 +107,8 @@ def process_log_data(spark, input_data, output_data):
         .withColumn('day', dayofmonth('timestamp'))\
         .withColumn('month', month('timestamp'))\
         .withColumn('year', year('timestamp'))\
-        .withColumn('weekday', dayofweek('timestamp'))
+        .withColumn('weekday', dayofweek('timestamp'))\
+        .dropDuplicates()
 
     # write time table to parquet files partitioned by year and month
     time_table.write.format('parquet')\
@@ -101,7 +128,8 @@ def process_log_data(spark, input_data, output_data):
         .select(['songplay_id', 'timestamp', 'userId', 'level', 'song_id', 'artist_id', 'sessionId', 'location', 'userAgent'])\
         .withColumn('month', month('timestamp'))\
         .withColumn('year', year('timestamp'))\
-        .withColumnRenamed('timestamp','start_time')
+        .withColumnRenamed('timestamp','start_time')\
+        .dropDuplicates()
 
     # write songplays table to parquet files partitioned by year and month
     songplays_table.write.format('parquet')\
@@ -111,14 +139,22 @@ def process_log_data(spark, input_data, output_data):
 
 
 def main():
+    '''Main function that first declares the three inputs to the process_song_data and process_log_data functions and then runs them.
+    Parameters:
+    None
+    Returns:
+    None
+    '''
     spark = create_spark_session()
-    input_data = "s3a://udacity-dend/"
+    input_data = 's3a://udacity-dend/'
     #fill in the name of your private S3 bucket
-    output_data = ""
+    output_data = ''
 
     process_song_data(spark, input_data, output_data)
     process_log_data(spark, input_data, output_data)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
+    '''Executes the main function.
+    '''
     main()
